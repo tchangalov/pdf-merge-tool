@@ -3,6 +3,7 @@ import re
 from PyPDF2 import PdfReader, PdfWriter
 from pathlib import Path
 import sys
+import re
 
 def parse_page_range(range_str, total_pages):
     """Parse page ranges like 1-3,5 into zero-based page indices."""
@@ -19,15 +20,15 @@ def merge_pdfs(inputs, output):
     writer = PdfWriter()
 
     for entry in inputs:
-        if ':' in entry:
-            path_str, range_str = entry.split(':', 1)
+        # Match colon followed by page range pattern (digits, commas, hyphens)
+        if re.search(r':[\d,\-]+$', entry):
+            path_str, range_str = entry.rsplit(':', 1)
         else:
             path_str, range_str = entry, None
 
         path = Path(path_str)
         if not path.exists():
-            print(f"Error: File not found: {path}")
-            sys.exit(1)
+            raise FileNotFoundError(f"File not found: {path}")
         print(f"Reading {path}")
         reader = PdfReader(str(path))
         total_pages = len(reader.pages)
@@ -36,8 +37,7 @@ def merge_pdfs(inputs, output):
             try:
                 pages = parse_page_range(range_str, total_pages)
             except Exception as e:
-                print(f"Error parsing range '{range_str}' in file '{path}': {e}")
-                sys.exit(1)
+                raise ValueError(f"Invalid page range: {range_str}")
         else:
             pages = range(total_pages)
 
